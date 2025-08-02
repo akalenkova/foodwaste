@@ -39,6 +39,21 @@ def discover_ctmc_from_product_data(product_df, capacity, initial_quantity):
         Q_matrix[i, i] = -np.sum(Q_matrix[i, :])
 
     return lambda_vec, Q_matrix
+
+def expected_quantity(steady_state_probs):
+    """
+    Computes the expected product quantity in the store under steady-state.
+
+    Parameters:
+        steady_state_probs (list or np.ndarray): Steady-state probabilities for each state (0 to k)
+
+    Returns:
+        float: Expected quantity
+    """
+    states = np.arange(len(steady_state_probs))
+    expected_value = np.dot(states, steady_state_probs)
+    return expected_value
+
 def add_supply_transitions(Q_matrix, capacity, supply_batch_size, supply_rate):
     """
     Adds backward supply transitions to the CTMC matrix.
@@ -85,8 +100,25 @@ def compute_steady_state(Q):
 
     return pi_normalized
 
+def expected_oversupply(steady_state_probs, threshold):
+    """
+    Computes the expected number of oversupplied units above the given threshold.
+    
+    Parameters:
+        steady_state_probs (list or np.ndarray): Steady-state probabilities for each state.
+        threshold (int): The quantity threshold beyond which units are considered oversupply.
+    
+    Returns:
+        float: Expected number of oversupplied units.
+    """
+    states = np.arange(len(steady_state_probs))
+    oversupply = np.maximum(states - threshold, 0)
+    expected_waste = np.dot(oversupply, steady_state_probs)
+    return expected_waste
+
 # Apply the function to a sample product
 sample_product_id = df['product_id'].iloc[0]
+print(sample_product_id)
 product_data = df[df['product_id'] == sample_product_id]
 capacity = 100
 initial_quantity = 10  
@@ -95,7 +127,7 @@ lambda_vec, Q_matrix = discover_ctmc_from_product_data(product_data, capacity, i
 
 # Example usage with batch size 2 and supply rate 0.1 (e.g., one batch every 10 hours)
 supply_batch_size = 10
-supply_rate = 0.35 # 0.3 per hour
+supply_rate = 0.4 # 0.3 per hour
 Q_enhanced = add_supply_transitions(Q_matrix, capacity, supply_batch_size, supply_rate)
 
 # Prepare results for display
@@ -115,7 +147,15 @@ steady_state_df = pd.DataFrame({
     "Steady-State Probability": steady_state_pi
 })
 
+print(steady_state_pi[0]+steady_state_pi[1]+steady_state_pi[2]+steady_state_pi[3])
+
 print("Steady-State Probabilities", steady_state_df)
+
+expected_qty = expected_quantity(steady_state_pi)
+print(expected_qty)
+
+expected_waste_70 = expected_oversupply(steady_state_pi, threshold=70)
+print(expected_waste_70)
 
 # Plot steady-state probabilities
 plt.figure(figsize=(8, 5))
